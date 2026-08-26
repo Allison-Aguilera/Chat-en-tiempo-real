@@ -1,7 +1,7 @@
-from database import Base
+from Backend.database import Base
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import relationship
-
+from datetime import datetime
 
 class Usuario(Base):
   __tablename__ = "usuarios"
@@ -84,3 +84,12 @@ class Notificacion(Base):
 
   # Relaciones
   usuario = relationship("Usuario", back_populates="notificaciones")
+  
+class MensajePrivado(Base):
+    __tablename__ = "mensajes_privados"
+
+    id = Column(Integer, primary_key=True, index=True)
+    remitente = Column(String, index=True)     
+    destinatario = Column(String, index=True)   
+    texto = Column(String)
+    fecha = Column(DateTime, default=datetime.utcnow)

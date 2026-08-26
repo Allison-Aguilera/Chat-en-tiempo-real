@@ -7,10 +7,13 @@ from sqlalchemy.orm import sessionmaker
 # Carga las variables de entorno desde el archivo .env
 load_dotenv()
 
-# Obtiene la URL de conexión a Neon (ahora apuntando a chat_db)
+# Obtiene la URL y le indicamos a Pylance que estamos seguros de que existe
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Crea el motor de conexión para SQLAlchemy
+if DATABASE_URL is None:
+    raise ValueError("La variable DATABASE_URL no está definida en el archivo .env")
+
+# A partir de aquí, Pylance ya sabe que DATABASE_URL es estrictamente un string (str)
 engine = create_engine(DATABASE_URL)
 
 # Crea la fábrica de sesiones para interactuar con la base de datos

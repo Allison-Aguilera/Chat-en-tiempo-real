@@ -1,12 +1,12 @@
 from datetime import datetime
-from typing import Optional
-from pydantic import BaseModel, EmailStr
+from typing import List, Optional
+from pydantic import BaseModel, EmailStr, Field
 
 # --- Usuarios ---
 class UsuarioCreate(BaseModel):
     nombre: str
     email: EmailStr
-    contrasena: str
+    contrasena: str = Field(min_length=6)
 
 class UsuarioOut(BaseModel):
     id: int
@@ -17,11 +17,15 @@ class UsuarioOut(BaseModel):
     class Config:
         from_attributes = True
 
+class UsuarioUpdate(BaseModel):
+    nombre: Optional[str] = None
+
 # --- Salas ---
 class SalaCreate(BaseModel):
     nombre: str
     descripcion: Optional[str] = None
     privado: Optional[bool] = False
+    miembros_ids: List[int] = []
 
 class SalaOut(BaseModel):
     id: int
@@ -75,3 +79,8 @@ class NotificacionOut(BaseModel):
 
     class Config:
         from_attributes = True
+        
+# --- Login ---
+class UsuarioLogin(BaseModel):
+    email: EmailStr
+    contrasena: str

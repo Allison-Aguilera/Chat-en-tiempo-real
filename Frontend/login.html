@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusChat — Acceso</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,wght@1,500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="d-flex align-items-center justify-content-center">
+
+    <canvas id="fireflyCanvas"></canvas>
+    <div class="vineta"></div>
+
+    <div class="marca-superior">
+        <span class="punto"></span>
+        NexusChat
+    </div>
+
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-7 col-lg-4">
+
+                <div class="card auth-card">
+                    <div class="brand-header">
+                        <h4 class="mb-1">NexusChat</h4>
+                        <p class="mb-0">Comunicación en tiempo real</p>
+                    </div>
+
+                    <div class="card-body px-4 py-3">
+                        <div id="alertContainer"></div>
+
+                        <ul class="nav nav-pills nav-justified mb-3" id="authTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab">Iniciar Sesión</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab">Registrarse</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="authTabsContent">
+
+                            <div class="tab-pane fade show active" id="login" role="tabpanel">
+                                <form id="loginForm">
+                                    <div class="mb-2">
+                                        <label for="loginEmail" class="form-label">Correo electrónico</label>
+                                        <input type="email" class="form-control" id="loginEmail" placeholder="tucorreo@ejemplo.com" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="loginPassword" class="form-label">Contraseña</label>
+                                        <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-custom w-100">Entrar a la plataforma</button>
+                                </form>
+                            </div>
+
+                            <div class="tab-pane fade" id="register" role="tabpanel">
+                                <form id="registerForm">
+                                    <div class="mb-2">
+                                        <label for="regNombre" class="form-label">Nombre de usuario</label>
+                                        <input type="text" class="form-control" id="regNombre" placeholder="Ej. CarlosDev" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label for="regEmail" class="form-label">Correo electrónico</label>
+                                        <input type="email" class="form-control" id="regEmail" placeholder="tucorreo@ejemplo.com" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="regPassword" class="form-label">Contraseña</label>
+                                        <input type="password" class="form-control" id="regPassword" placeholder="Mínimo 6 caracteres" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-custom w-100">Crear cuenta nueva</button>
+                                </form>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const canvas = document.getElementById("fireflyCanvas");
+        const ctx = canvas.getContext("2d");
+
+        let width, height;
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener("resize", resize);
+        resize();
+
+        const reducirMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        let mouse = { x: null, y: null, radio: 170 };
+        window.addEventListener("mousemove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener("mouseout", () => { mouse.x = null; mouse.y = null; });
+
+        class Luciernaga {
+            constructor() { this.reset(); }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.size = Math.random() * 1.6 + 1.1;
+                // Movimiento errático: cada luciérnaga cambia de dirección poco a poco
+                this.angulo = Math.random() * Math.PI * 2;
+                this.velAngulo = (Math.random() - 0.5) * 0.02;
+                this.velocidad = Math.random() * 0.25 + 0.08;
+                // Parpadeo propio, independiente del mouse
+                this.fase = Math.random() * Math.PI * 2;
+                this.velFase = Math.random() * 0.008 + 0.004;
+                this.brilloBase = Math.random() * 0.25 + 0.18;
+            }
+
+            actualizar() {
+                this.angulo += this.velAngulo;
+                this.x += Math.cos(this.angulo) * this.velocidad;
+                this.y += Math.sin(this.angulo) * this.velocidad;
+                this.fase += this.velFase;
+
+                if (this.x < -20) this.x = width + 20;
+                if (this.x > width + 20) this.x = -20;
+                if (this.y < -20) this.y = height + 20;
+                if (this.y > height + 20) this.y = -20;
+            }
+
+            brillo() {
+                // Parpadeo suave propio (respiración lenta) + boost si el mouse está cerca
+                let base = this.brilloBase + Math.sin(this.fase) * 0.12;
+                let boost = 0;
+                if (mouse.x !== null) {
+                    const d = Math.hypot(mouse.x - this.x, mouse.y - this.y);
+                    if (d < mouse.radio) {
+                        boost = (1 - d / mouse.radio) * 0.7;
+                    }
+                }
+                return Math.min(base + boost, 1);
+            }
+
+            dibujar() {
+                const b = this.brillo();
+                const radioGlow = this.size * (b > 0.5 ? 5 : 3);
+
+                const gradiente = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, radioGlow);
+                gradiente.addColorStop(0, `rgba(255, 197, 122, ${b})`);
+                gradiente.addColorStop(1, `rgba(255, 197, 122, 0)`);
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, radioGlow, 0, Math.PI * 2);
+                ctx.fillStyle = gradiente;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 226, 180, ${Math.min(b + 0.2, 1)})`;
+                ctx.fill();
+            }
+        }
+
+        let luciernagas = [];
+        function crearLuciernagas() {
+            const cantidad = Math.floor((width * height) / 14000);
+            luciernagas = Array.from({ length: cantidad }, () => new Luciernaga());
+        }
+        crearLuciernagas();
+        window.addEventListener("resize", crearLuciernagas);
+
+        function dibujarConstelacion() {
+            if (mouse.x === null) return;
+
+            // Solo conecta luciérnagas que estén dentro del radio del mouse
+            const cercanas = luciernagas.filter(l => Math.hypot(mouse.x - l.x, mouse.y - l.y) < mouse.radio);
+
+            for (let i = 0; i < cercanas.length; i++) {
+                for (let j = i + 1; j < cercanas.length; j++) {
+                    const a = cercanas[i], b = cercanas[j];
+                    const d = Math.hypot(a.x - b.x, a.y - b.y);
+                    if (d < 130) {
+                        const op = (1 - d / 130) * 0.35;
+                        ctx.strokeStyle = `rgba(255, 197, 122, ${op})`;
+                        ctx.lineWidth = 0.8;
+                        ctx.beginPath();
+                        ctx.moveTo(a.x, a.y);
+                        ctx.lineTo(b.x, b.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animar() {
+            ctx.clearRect(0, 0, width, height);
+
+            luciernagas.forEach(l => { l.actualizar(); });
+            dibujarConstelacion();
+            luciernagas.forEach(l => { l.dibujar(); });
+
+            if (!reducirMovimiento) {
+                requestAnimationFrame(animar);
+            }
+        }
+
+        if (!reducirMovimiento) {
+            animar();
+        } else {
+            luciernagas.forEach(l => l.dibujar());
+        }
+
+        // --- Lógica de Conexión con FastAPI (sin cambios) ---
+        const API_URL = "http://127.0.0.1:8000";
+
+        function mostrarAlerta(mensaje, tipo = "success") {
+            const alertContainer = document.getElementById("alertContainer");
+            alertContainer.innerHTML = `
+                <div class="alert alert-${tipo === 'success' ? 'success' : 'danger'} alert-dismissible fade show py-2 small rounded-3 border-0 shadow-sm mb-3" role="alert">
+                    ${mensaje}
+                    <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+        }
+
+        document.getElementById("registerForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById("regNombre").value;
+            const email = document.getElementById("regEmail").value;
+            const contrasena = document.getElementById("regPassword").value;
+
+            try {
+                // CAMBIADO de /usuarios/ a /api/register para que coincida con main.py
+                const response = await fetch(`${API_URL}/api/register`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ nombre, email, contrasena })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    mostrarAlerta("¡Cuenta creada con éxito! Ya puedes iniciar sesión.", "success");
+                    document.getElementById("registerForm").reset();
+                    document.getElementById("login-tab").click();
+                } else {
+                    mostrarAlerta(data.detail || "Error al registrar la cuenta.", "danger");
+                }
+            } catch (error) {
+                mostrarAlerta("No se pudo establecer conexión con el servidor.", "danger");
+            }
+        });
+
+        document.getElementById("loginForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("loginEmail").value;
+            const contrasena = document.getElementById("loginPassword").value;
+
+            try {
+                const response = await fetch(`${API_URL}/api/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, contrasena })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    mostrarAlerta("¡Inicio de sesión exitoso! Redirigiendo...", "success");
+                    
+                    // Guardamos el token JWT y el nombre en el almacenamiento local del navegador
+                    localStorage.setItem("token", data.access_token);
+                    localStorage.setItem("nombre", data.nombre);
+                    localStorage.setItem("mi_id", data.id); // <--- ESTA ES LA LÍNEA NUEVA
+                    
+                    // Redirigimos a la vista principal (home) después de 1 segundo
+                    setTimeout(() => {
+                        window.location.href = "/home";
+                    }, 1000);
+                } else {
+                    mostrarAlerta(data.detail || "Credenciales incorrectas.", "danger");
+                }
+            } catch (error) {
+                mostrarAlerta("No se pudo establecer conexión con el servidor.", "danger");
+            }
+        });
+    </script>
+</body>
+</html>
