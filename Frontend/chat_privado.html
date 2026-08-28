@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Privado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+    
+    <header class="bg-slate-800 border-b border-slate-700 h-16 flex justify-between items-center px-6 sticky top-0 z-50">
+        <div class="flex items-center space-x-3">
+            <a href="/home" class="text-slate-400 hover:text-white mr-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+            </a>
+            <div id="avatarTarget" class="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-sm text-white">U</div>
+            <div>
+                <h1 id="chatTitulo" class="text-base font-bold text-white leading-tight">Usuario</h1>
+                <span class="text-[10px] text-emerald-400 flex items-center"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1"></span>En línea</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow p-4 md:p-6 max-w-4xl mx-auto w-full flex flex-col justify-between h-[calc(100vh-4rem)]">
+        
+        <div id="mensajesPrivadosBox" class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-4 flex-grow overflow-y-auto mb-4 space-y-4">
+            <div class="text-center mb-6">
+                <span class="text-xs text-slate-500 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">Este es el inicio de tu chat privado con <span id="nombreInicio" class="font-bold">...</span></span>
+            </div>
+        </div>
+
+        <form id="privateForm" class="flex space-x-3 bg-slate-800/80 p-2 rounded-2xl border border-slate-700">
+            <input type="text" id="privadoInput" autocomplete="off" placeholder="Escribe un mensaje seguro..." class="flex-grow bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 text-white">
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-xl font-medium text-sm transition-all shadow-md shadow-emerald-600/20 text-white">
+                Enviar
+            </button>
+        </form>
+    </main>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetId = urlParams.get('id');
+    const targetUser = urlParams.get('user') || 'Usuario';
+    const miToken = localStorage.getItem('token');
+    const miId = localStorage.getItem('mi_id');
+
+    if (!miToken || !targetId) {
+        window.location.href = "/";
+    }
+
+    document.getElementById('chatTitulo').textContent = targetUser;
+    document.getElementById('nombreInicio').textContent = targetUser;
+    document.getElementById('avatarTarget').textContent = targetUser.charAt(0).toUpperCase();
+
+    const box = document.getElementById('mensajesPrivadosBox');
+
+    let ws = null;
+    let intentosReconexion = 0;
+    const MAX_INTENTOS = 5;
+    let cierreManual = false;
+
+    function mostrarEstado(texto, tipo = "info") {
+        const colores = {
+            info: "bg-slate-700 text-slate-400",
+            ok: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+            error: "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+        };
+        box.innerHTML += `<div class="text-center"><span class="text-xs ${colores[tipo]} px-3 py-1 rounded-full">${texto}</span></div>`;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    async function cargarHistorial() {
+        try {
+            const respuesta = await fetch(`/api/mensajes/${targetId}`, {
+                headers: { "Authorization": `Bearer ${miToken}` }
+            });
+
+            if (respuesta.ok) {
+                const historial = await respuesta.json();
+                historial.forEach(msg => {
+                    const esMio = msg.remitente === miId;
+                    pintarMensaje(msg.texto, esMio, "Historial");
+                });
+                box.scrollTop = box.scrollHeight;
+            }
+        } catch (error) {
+            console.error("Error al cargar historial:", error);
+        }
+    }
+
+    function pintarMensaje(texto, esMio, etiqueta = "Ahora") {
+        if (esMio) {
+            box.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="bg-emerald-600/20 border border-emerald-500/30 text-emerald-100 px-4 py-2 rounded-2xl rounded-tr-sm max-w-[75%] shadow-sm">
+                        <p class="text-sm">${texto}</p>
+                        <p class="text-[9px] text-emerald-400/60 text-right mt-1">${etiqueta}</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            box.innerHTML += `
+                <div class="flex justify-start">
+                    <div class="bg-slate-700/80 border border-slate-600 text-slate-100 px-4 py-2 rounded-2xl rounded-tl-sm max-w-[75%] shadow-sm">
+                        <p class="text-sm">${texto}</p>
+                        <p class="text-[9px] text-slate-400 text-left mt-1">${etiqueta}</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    cargarHistorial();
+
+    function conectarWebSocket() {
+        ws = new WebSocket(`ws://127.0.0.1:8000/ws/privado?token=${miToken}`);
+
+        ws.onopen = () => {
+            intentosReconexion = 0;
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.remitente_id === targetId) {
+                pintarMensaje(data.texto, false);
+                box.scrollTop = box.scrollHeight;
+            }
+        };
+
+        ws.onclose = (event) => {
+            if (cierreManual) return;
+
+            if (event.code === 1008) {
+                mostrarEstado("Sesión inválida. Inicia sesión de nuevo.", "error");
+                return;
+            }
+
+            if (intentosReconexion >= MAX_INTENTOS) {
+                mostrarEstado("No se pudo restablecer la conexión. Recarga la página.", "error");
+                return;
+            }
+
+            intentosReconexion++;
+            const espera = Math.min(1000 * (2 ** intentosReconexion), 15000);
+            mostrarEstado(`Conexión perdida. Reintentando en ${espera / 1000}s...`, "error");
+            setTimeout(conectarWebSocket, espera);
+        };
+    }
+
+    conectarWebSocket();
+
+    window.addEventListener("beforeunload", () => {
+        cierreManual = true;
+        if (ws) ws.close();
+    });
+
+    document.getElementById('privateForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('privadoInput');
+        const texto = input.value.trim();
+        if (!texto) return;
+
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            mostrarEstado("No estás conectado. Espera a que se restablezca la conexión.", "error");
+            return;
+        }
+
+        pintarMensaje(texto, true);
+        ws.send(JSON.stringify({ destinatario_id: targetId, texto: texto }));
+        input.value = '';
+        box.scrollTop = box.scrollHeight;
+    });
+</script>
+</body>
+</html>

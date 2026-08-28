@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusChat — Acceso</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,wght@1,500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .campo-password-wrap { position: relative; }
+        .campo-password-wrap input { padding-right: 42px; }
+        .btn-toggle-password {
+            position: absolute; right: 10px; top: 12px;
+            background: none; border: none; padding: 4px; cursor: pointer;
+            color: #6b7686; display: flex; align-items: center;
+        }
+        .btn-toggle-password:hover { color: #cbd5e1; }
+        .btn-toggle-password svg { width: 18px; height: 18px; }
+
+        .form-control.input-valido {
+            border-color: #8fa389 !important;
+            background-color: rgba(143, 163, 137, 0.08) !important;
+        }
+        .form-control.input-invalido {
+            border-color: #e0777d !important;
+            background-color: rgba(224, 119, 125, 0.08) !important;
+        }
+        .mensaje-campo { display: block; font-size: 11.5px; margin-top: 4px; min-height: 14px; }
+        .mensaje-campo.ok { color: #8fa389; }
+        .mensaje-campo.error { color: #e0777d; }
+
+        .checklist-password { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+        .req-item { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #6b7686; transition: color 0.2s ease; }
+        .req-item .req-icono {
+            width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #545c68;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+        .req-item .req-icono svg { width: 8px; height: 8px; opacity: 0; transition: opacity 0.15s ease; }
+        .req-item.cumplido { color: #8fa389; }
+        .req-item.cumplido .req-icono { border-color: #8fa389; background: #8fa389; }
+        .req-item.cumplido .req-icono svg { opacity: 1; }
+    </style>
+</head>
+<body class="d-flex align-items-center justify-content-center">
+
+    <canvas id="fireflyCanvas"></canvas>
+    <div class="vineta"></div>
+
+    <div class="marca-superior">
+        <span class="punto"></span>
+        NexusChat
+    </div>
+
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-7 col-lg-4">
+
+                <div class="card auth-card">
+                    <div class="brand-header">
+                        <h4 class="mb-1">NexusChat</h4>
+                        <p class="mb-0">Comunicación en tiempo real</p>
+                    </div>
+
+                    <div class="card-body px-4 py-3">
+                        <div id="alertContainer"></div>
+
+                        <ul class="nav nav-pills nav-justified mb-3" id="authTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab">Iniciar Sesión</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab">Registrarse</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="authTabsContent">
+
+                            <!-- Formulario de Iniciar Sesión -->
+                            <div class="tab-pane fade show active" id="login" role="tabpanel">
+                                <form id="loginForm">
+                                    <div class="mb-2">
+                                        <label for="loginEmail" class="form-label">Correo electrónico</label>
+                                        <input type="email" class="form-control" id="loginEmail" placeholder="tucorreo@ejemplo.com" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="loginPassword" class="form-label">Contraseña</label>
+                                        <div class="campo-password-wrap">
+                                            <input type="password" class="form-control" id="loginPassword" placeholder="••••••••" required>
+                                            <button type="button" class="btn-toggle-password" onclick="alternarVisibilidad('loginPassword', this)" tabindex="-1" aria-label="Mostrar contraseña">
+                                                <svg class="icono-ojo-abierto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                                <svg class="icono-ojo-cerrado d-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
+                                            </button>
+                                        </div>
+                                        <span class="mensaje-campo" id="errorLogin"></span>
+                                    </div>
+                                    <button type="submit" class="btn btn-custom w-100">Entrar a la plataforma</button>
+                                </form>
+                            </div>
+
+                            <!-- Formulario de Registro -->
+                            <div class="tab-pane fade" id="register" role="tabpanel">
+                                <form id="registerForm" novalidate>
+                                    <div class="mb-2">
+                                        <label for="regNombre" class="form-label">Nombre de usuario</label>
+                                        <input type="text" class="form-control" id="regNombre" placeholder="Ej. CarlosDev" minlength="3" maxlength="50" required
+                                            oninput="validarNombreUsuario()">
+                                        <span class="mensaje-campo" id="errorNombre"></span>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label for="regEmail" class="form-label">Correo electrónico</label>
+                                        <!-- Se añadió el evento oninput para validar el correo en tiempo real -->
+                                        <input type="email" class="form-control" id="regEmail" placeholder="tucorreo@ejemplo.com" required
+                                            oninput="validarEmailRegistro()">
+                                        <!-- Span para mostrar el error específico de correo en registro -->
+                                        <span class="mensaje-campo" id="errorRegEmail"></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="regPassword" class="form-label">Contraseña</label>
+                                        <div class="campo-password-wrap">
+                                            <input type="password" class="form-control" id="regPassword" placeholder="Crea una contraseña segura" required
+                                                oninput="validarPassword()">
+                                            <button type="button" class="btn-toggle-password" onclick="alternarVisibilidad('regPassword', this)" tabindex="-1" aria-label="Mostrar contraseña">
+                                                <svg class="icono-ojo-abierto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                                <svg class="icono-ojo-cerrado d-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
+                                            </button>
+                                        </div>
+                                        <div class="checklist-password">
+                                            <div class="req-item" id="req-longitud">
+                                                <span class="req-icono"><svg fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                                                <span>Más de 8 caracteres</span>
+                                            </div>
+                                            <div class="req-item" id="req-mayuscula">
+                                                <span class="req-icono"><svg fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                                                <span>Al menos 1 mayúscula</span>
+                                            </div>
+                                            <div class="req-item" id="req-numero">
+                                                <span class="req-icono"><svg fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                                                <span>Al menos 1 número</span>
+                                            </div>
+                                            <div class="req-item" id="req-especial">
+                                                <span class="req-icono"><svg fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg></span>
+                                                <span>Al menos 1 carácter especial</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-custom w-100">Crear cuenta nueva</button>
+                                </form>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const canvas = document.getElementById("fireflyCanvas");
+        const ctx = canvas.getContext("2d");
+
+        let width, height;
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener("resize", resize);
+        resize();
+
+        const reducirMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        let mouse = { x: null, y: null, radio: 170 };
+        window.addEventListener("mousemove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener("mouseout", () => { mouse.x = null; mouse.y = null; });
+
+        class Luciernaga {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.size = Math.random() * 1.6 + 1.1;
+                this.angulo = Math.random() * Math.PI * 2;
+                this.velAngulo = (Math.random() - 0.5) * 0.02;
+                this.velocidad = Math.random() * 0.25 + 0.08;
+                this.fase = Math.random() * Math.PI * 2;
+                this.velFase = Math.random() * 0.008 + 0.004;
+                this.brilloBase = Math.random() * 0.25 + 0.18;
+            }
+            actualizar() {
+                this.angulo += this.velAngulo;
+                this.x += Math.cos(this.angulo) * this.velocidad;
+                this.y += Math.sin(this.angulo) * this.velocidad;
+                this.fase += this.velFase;
+                if (this.x < -20) this.x = width + 20;
+                if (this.x > width + 20) this.x = -20;
+                if (this.y < -20) this.y = height + 20;
+                if (this.y > height + 20) this.y = -20;
+            }
+            brillo() {
+                let base = this.brilloBase + Math.sin(this.fase) * 0.12;
+                let boost = 0;
+                if (mouse.x !== null) {
+                    const d = Math.hypot(mouse.x - this.x, mouse.y - this.y);
+                    if (d < mouse.radio) boost = (1 - d / mouse.radio) * 0.7;
+                }
+                return Math.min(base + boost, 1);
+            }
+            dibujar() {
+                const b = this.brillo();
+                const radioGlow = this.size * (b > 0.5 ? 5 : 3);
+                const gradiente = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, radioGlow);
+                gradiente.addColorStop(0, `rgba(255, 197, 122, ${b})`);
+                gradiente.addColorStop(1, `rgba(255, 197, 122, 0)`);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, radioGlow, 0, Math.PI * 2);
+                ctx.fillStyle = gradiente;
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size * 0.5, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255, 226, 180, ${Math.min(b + 0.2, 1)})`;
+                ctx.fill();
+            }
+        }
+
+        let luciernagas = [];
+        function crearLuciernagas() {
+            const cantidad = Math.floor((width * height) / 14000);
+            luciernagas = Array.from({ length: cantidad }, () => new Luciernaga());
+        }
+        crearLuciernagas();
+        window.addEventListener("resize", crearLuciernagas);
+
+        function dibujarConstelacion() {
+            if (mouse.x === null) return;
+            const cercanas = luciernagas.filter(l => Math.hypot(mouse.x - l.x, mouse.y - l.y) < mouse.radio);
+            for (let i = 0; i < cercanas.length; i++) {
+                for (let j = i + 1; j < cercanas.length; j++) {
+                    const a = cercanas[i], b = cercanas[j];
+                    const d = Math.hypot(a.x - b.x, a.y - b.y);
+                    if (d < 130) {
+                        const op = (1 - d / 130) * 0.35;
+                        ctx.strokeStyle = `rgba(255, 197, 122, ${op})`;
+                        ctx.lineWidth = 0.8;
+                        ctx.beginPath();
+                        ctx.moveTo(a.x, a.y);
+                        ctx.lineTo(b.x, b.y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animar() {
+            ctx.clearRect(0, 0, width, height);
+            luciernagas.forEach(l => { l.actualizar(); });
+            dibujarConstelacion();
+            luciernagas.forEach(l => { l.dibujar(); });
+            if (!reducirMovimiento) requestAnimationFrame(animar);
+        }
+
+        if (!reducirMovimiento) {
+            animar();
+        } else {
+            luciernagas.forEach(l => l.dibujar());
+        }
+
+        // Ojo de mostrar/ocultar contraseña
+        function alternarVisibilidad(inputId, boton) {
+            const input = document.getElementById(inputId);
+            const ojoAbierto = boton.querySelector('.icono-ojo-abierto');
+            const ojoCerrado = boton.querySelector('.icono-ojo-cerrado');
+
+            if (input.type === 'password') {
+                input.type = 'text';
+                ojoAbierto.classList.add('d-none');
+                ojoCerrado.classList.remove('d-none');
+            } else {
+                input.type = 'password';
+                ojoAbierto.classList.remove('d-none');
+                ojoCerrado.classList.add('d-none');
+            }
+        }
+
+        // Validación en tiempo real: nombre de usuario
+        function validarNombreUsuario() {
+            const input = document.getElementById('regNombre');
+            const error = document.getElementById('errorNombre');
+            const valor = input.value.trim();
+
+            if (valor.length === 0) {
+                marcarInvalido(input, error, 'El nombre de usuario es obligatorio.');
+                return false;
+            }
+            if (valor.length < 3) {
+                marcarInvalido(input, error, 'Debe tener al menos 3 caracteres.');
+                return false;
+            }
+            if (valor.length > 50) {
+                marcarInvalido(input, error, 'Máximo 50 caracteres.');
+                return false;
+            }
+            marcarValido(input, error);
+            return true;
+        }
+
+        // =====================================================================
+        // Validación en tiempo real: Correo de Registro (No vacío, @ y dominio)
+        // =====================================================================
+        function validarEmailRegistro() {
+            const input = document.getElementById('regEmail');
+            const error = document.getElementById('errorRegEmail');
+            const valor = input.value.trim();
+
+            // Expresión regular estándar que asegura texto antes del @, el @, texto para el dominio, un punto y extensión (ej: .com)
+            const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (valor.length === 0) {
+                marcarInvalido(input, error, 'El correo electrónico no puede estar vacío.');
+                return false;
+            }
+            
+            if (!regexEmail.test(valor)) {
+                marcarInvalido(input, error, 'Debe incluir un "@" y un dominio válido (ej. usuario@dominio.com).');
+                return false;
+            }
+
+            marcarValido(input, error);
+            return true;
+        }
+
+        // Validación en tiempo real: contraseña (checklist)
+        function validarPassword() {
+            const input = document.getElementById('regPassword');
+            const valor = input.value;
+
+            const cumple = {
+                longitud: valor.length > 8,
+                mayuscula: /[A-Z]/.test(valor),
+                numero: /[0-9]/.test(valor),
+                especial: /[^A-Za-z0-9]/.test(valor)
+            };
+
+            actualizarRequisito('req-longitud', cumple.longitud);
+            actualizarRequisito('req-mayuscula', cumple.mayuscula);
+            actualizarRequisito('req-numero', cumple.numero);
+            actualizarRequisito('req-especial', cumple.especial);
+
+            const todoCumplido = Object.values(cumple).every(Boolean);
+
+            if (valor.length === 0) {
+                input.classList.remove('input-valido', 'input-invalido');
+            } else if (todoCumplido) {
+                input.classList.remove('input-invalido');
+                input.classList.add('input-valido');
+            } else {
+                input.classList.remove('input-valido');
+                input.classList.add('input-invalido');
+            }
+
+            return todoCumplido;
+        }
+
+        function actualizarRequisito(id, cumplido) {
+            const el = document.getElementById(id);
+            if (cumplido) el.classList.add('cumplido');
+            else el.classList.remove('cumplido');
+        }
+
+        // Helpers de verde/rojo genéricos
+        function marcarValido(input, spanError) {
+            input.classList.remove('input-invalido');
+            input.classList.add('input-valido');
+            if (spanError) {
+                spanError.textContent = '';
+                spanError.className = 'mensaje-campo';
+            }
+        }
+
+        function marcarInvalido(input, spanError, mensaje) {
+            input.classList.remove('input-valido');
+            input.classList.add('input-invalido');
+            if (spanError) {
+                spanError.textContent = mensaje;
+                spanError.className = 'mensaje-campo error';
+            }
+        }
+
+        //  Conexión con FastAPI 
+        const API_URL = "http://127.0.0.1:8000";
+
+        function mostrarAlerta(mensaje, tipo = "success") {
+            const alertContainer = document.getElementById("alertContainer");
+            alertContainer.innerHTML = `
+                <div class="alert alert-${tipo === 'success' ? 'success' : 'danger'} alert-dismissible fade show py-2 small rounded-3 border-0 shadow-sm mb-3" role="alert">
+                    ${mensaje}
+                    <button type="button" class="btn-close py-2" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            `;
+        }
+
+        document.getElementById("registerForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const nombreValido = validarNombreUsuario();
+            const emailValido = validarEmailRegistro();
+            const passwordValida = validarPassword();
+
+            if (!nombreValido || !emailValido || !passwordValida) {
+                mostrarAlerta("Corrige los campos marcados antes de continuar.", "danger");
+                return;
+            }
+
+            const nombre = document.getElementById("regNombre").value;
+            const email = document.getElementById("regEmail").value;
+            const contrasena = document.getElementById("regPassword").value;
+
+            try {
+                const response = await fetch(`${API_URL}/api/register`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ nombre, email, contrasena })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    mostrarAlerta("¡Cuenta creada con éxito! Ya puedes iniciar sesión.", "success");
+                    document.getElementById("registerForm").reset();
+                    document.querySelectorAll('#registerForm .req-item').forEach(el => el.classList.remove('cumplido'));
+                    document.getElementById("regPassword").classList.remove('input-valido', 'input-invalido');
+                    document.getElementById("regNombre").classList.remove('input-valido', 'input-invalido');
+                    document.getElementById("regEmail").classList.remove('input-valido', 'input-invalido');
+                    document.getElementById("errorRegEmail").textContent = "";
+                    document.getElementById("login-tab").click();
+                } else {
+                    mostrarAlerta(data.detail || "Error al registrar la cuenta.", "danger");
+                }
+            } catch (error) {
+                mostrarAlerta("No se pudo establecer conexión con el servidor.", "danger");
+            }
+        });
+
+        document.getElementById("loginForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const emailInput = document.getElementById("loginEmail");
+            const passwordInput = document.getElementById("loginPassword");
+            const errorLogin = document.getElementById("errorLogin");
+            
+            const email = emailInput.value;
+            const contrasena = passwordInput.value;
+
+            emailInput.classList.remove('input-invalido', 'input-valido');
+            passwordInput.classList.remove('input-invalido', 'input-valido');
+            errorLogin.textContent = "";
+            errorLogin.className = "mensaje-campo";
+
+            try {
+                const response = await fetch(`${API_URL}/api/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, contrasena })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    mostrarAlerta("¡Inicio de sesión exitoso! Redirigiendo...", "success");
+
+                    localStorage.setItem("token", data.access_token);
+                    localStorage.setItem("nombre", data.nombre);
+                    localStorage.setItem("mi_id", data.id);
+
+                    setTimeout(() => {
+                        window.location.href = "/home";
+                    }, 1000);
+                } else {
+                    emailInput.classList.add('input-invalido');
+                    passwordInput.classList.add('input-invalido');
+                    errorLogin.textContent = "La contraseña o correo es incorrecto";
+                    errorLogin.className = "mensaje-campo error";
+                }
+            } catch (error) {
+                mostrarAlerta("No se pudo establecer conexión con el servidor.", "danger");
+            }
+        });
+    </script>
+</body>
+</html>

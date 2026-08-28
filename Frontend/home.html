@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Chat - Panel Principal</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+    @keyframes toastPop {
+        0%   { opacity: 0; transform: translateX(28px) scale(0.9); }
+        55%  { opacity: 1; transform: translateX(-6px) scale(1.035); }
+        100% { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    @keyframes toastOut {
+        to { opacity: 0; transform: translateX(20px) scale(0.92); }
+    }
+    @keyframes iconPop {
+        0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+        55%  { transform: scale(1.2) rotate(8deg); opacity: 1; }
+        100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    @keyframes shakeX {
+        10%, 90% { transform: translateX(-1px); }
+        20%, 80% { transform: translateX(2px); }
+        30%, 50%, 70% { transform: translateX(-4px); }
+        40%, 60% { transform: translateX(4px); }
+    }
+    @keyframes ringGlow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.08); }
+        50%      { box-shadow: 0 0 0 5px rgba(255,255,255,0.08); }
+    }
+    .animate-toast-in  { animation: toastPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    .animate-toast-out { animation: toastOut 0.22s ease-in forwards; }
+    .animate-icon-pop  { animation: iconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both; }
+    .animate-shake     { animation: shakeX 0.45s ease-in-out 0.35s; }
+    .animate-ring-glow { animation: ringGlow 1.6s ease-in-out infinite; }
+</style>
+</head>
+
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Navbar Superior -->
+    <header class="bg-slate-800/80 backdrop-blur-md border-b border-slate-700/60 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/30">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white">NexusChat</h1>
+                    
+                </div>
+            </div>
+
+            <!-- Zona de Usuario -->
+            <div class="flex items-center space-x-4 relative">
+                <div class="relative">
+                    <button id="userMenuBtn" onclick="toggleUserMenu()"
+                        class="flex items-center space-x-3 bg-slate-700/40 hover:bg-slate-700/70 px-3 py-1.5 rounded-full border border-slate-700 transition-all duration-200 focus:outline-none">
+                        <div id="userAvatar" class="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center font-bold text-sm text-white">U</div>
+                        <span id="userNameDisplay" class="text-sm font-medium text-slate-200">Cargando...</span>
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Mini Menú Desplegable -->
+                    <div id="userDropdown" class="hidden absolute right-0 mt-2 w-72 bg-slate-800 border border-slate-700/80 rounded-2xl shadow-2xl py-2 z-50 backdrop-blur-xl">
+                        <div class="px-4 py-2 border-b border-slate-700/60">
+                            <p class="text-xs text-slate-400">Conectado como</p>
+                            <p id="dropdownEmail" class="text-sm font-semibold text-white truncate">cargando@ejemplo.com</p>
+                        </div>
+                        <div class="py-1">
+                            <button onclick="abrirNotificaciones()" class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700/50 flex items-center justify-between transition-colors">
+                                <span class="flex items-center space-x-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                                    <span>Notificaciones</span>
+                                </span>
+                                <span id="badgeNotificaciones" class="hidden bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
+                            </button>
+                            <a href="/configuracion" class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700/50 flex items-center space-x-2 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                <span>Configuración</span>
+                            </a>
+                            <div class="border-t border-slate-700/60 my-1"></div>
+                            <button onclick="cerrarSesion()" class="w-full text-left px-4 py-2 text-sm text-rose-400 hover:bg-rose-500/10 flex items-center space-x-2 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                                <span>Cerrar Sesión</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full grid grid-cols-1 gap-8">
+
+        <!-- SECCIÓN DE SALAS -->
+        <div class="w-full">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 tracking-tight">
+                    Mis Salas
+                </h2>
+                <button onclick="abrirModalCrearSala()" class="bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all border border-blue-500/20 shadow-lg shadow-blue-900/20 flex items-center space-x-2">
+                    <span>+</span> <span>Crear Sala</span>
+                </button>
+            </div>
+            <div id="listaSalas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="text-xs text-slate-500 p-4">Cargando salas...</div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN DE MENSAJES DIRECTOS CON BUSCADOR -->
+        <div class="w-full">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+                <h2 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400 tracking-tight">
+                    Mensajes Directos
+                </h2>
+                <!-- Buscador de usuarios para chat directo -->
+                <div class="relative w-full sm:w-80">
+                    <input type="text" id="buscadorDirecto" placeholder="Buscar usuario por nombre o correo..." 
+                        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-emerald-500 transition-colors">
+                    
+                    <!-- Contenedor de Sugerencias Buscador Directo -->
+                    <div id="sugerenciasDirecto" class="hidden absolute left-0 right-0 mt-1 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-40 p-1"></div>
+                </div>
+            </div>
+
+            <div id="listaMensajesDirectos" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Se llena dinámicamente -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- MODAL: Notificaciones -->
+    <div id="modalNotificaciones" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-3xl p-6 shadow-2xl relative max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-white">Notificaciones</h3>
+                <button onclick="cerrarNotificaciones()" class="text-slate-400 hover:text-white font-bold text-xl">&times;</button>
+            </div>
+
+            <button onclick="marcarTodasLeidas()" class="text-xs text-blue-400 hover:text-blue-300 mb-3 self-start">
+                Marcar todas como leídas
+            </button>
+
+            <div id="listaNotificaciones" class="overflow-y-auto space-y-2 flex-grow">
+                <div class="text-xs text-slate-500 p-4 text-center">Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Crear Sala con Selección Múltiple de Miembros -->
+    <div id="modalCrearSala" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-lg rounded-3xl p-6 shadow-2xl relative">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-white">Crear Nueva Sala</h3>
+                <button onclick="cerrarModalCrearSala()" class="text-slate-400 hover:text-white font-bold text-xl">&times;</button>
+            </div>
+
+            <form id="formCrearSala" onsubmit="guardarSala(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Nombre de la Sala</label>
+                    <input type="text" id="nombreSala" required placeholder="Ej. Equipo Frontend" 
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Descripción</label>
+                    <textarea id="descSala" rows="2" placeholder="De qué trata esta sala..." 
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Añadir Miembros</label>
+                    <input type="text" id="inputBuscarMiembro" placeholder="Escribe para buscar por nombre o correo..." 
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                    
+                    <!-- Lista desplegable de sugerencias para la sala -->
+                    <div id="sugerenciasMiembros" class="hidden mt-1 bg-slate-900 border border-slate-700 rounded-xl max-h-36 overflow-y-auto space-y-1 p-1 z-50"></div>
+                </div>
+
+                <!-- Lista de miembros seleccionados (Badges) -->
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 uppercase">Miembros seleccionados (<span id="contadorMiembros">0</span>)</span>
+                    <div id="miembrosSeleccionadosContainer" class="flex flex-wrap gap-2 mt-2 min-h-[40px] p-2 bg-slate-900/50 rounded-xl border border-slate-700/50">
+                        <span class="text-xs text-slate-500 italic self-center">Ningún miembro añadido aún.</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-2">
+                    <button type="button" onclick="cerrarModalCrearSala()" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-700 transition-colors">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 transition-all">Guardar Sala</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- TOAST: reemplazo de alert() nativo -->
+    <div id="toastContainer" class="fixed top-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+    
+    <!-- Scripts de Interacción -->
+    <script>
+        const API_URL = "http://127.0.0.1:8000";
+        let todosLosUsuarios = [];
+        let miembrosIdsSeleccionados = [];
+
+        const ICONOS_SVG = {
+            ok:    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />',
+            error: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />',
+            info:  '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+            alerta:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />',
+            notificacion: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />'
+        };
+
+        function mostrarToast(mensaje, tipo = "info", duracionMs = 3500) {
+            const estilos = {
+                ok:    { anillo: "ring-emerald-500/20", bg: "bg-emerald-500/15", texto: "text-emerald-400", barra: "bg-emerald-500" },
+                error: { anillo: "ring-rose-500/20",    bg: "bg-rose-500/15",    texto: "text-rose-400",    barra: "bg-rose-500" },
+                info:  { anillo: "ring-blue-500/20",     bg: "bg-blue-500/15",     texto: "text-blue-400",     barra: "bg-blue-500" },
+                notificacion: { anillo: "ring-amber-500/20", bg: "bg-amber-500/15", texto: "text-amber-400", barra: "bg-amber-500" }
+            };
+            const s = estilos[tipo] || estilos.info;
+            const conTemblor = tipo === "error" ? "animate-shake" : "";
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto relative overflow-hidden flex items-start gap-3 bg-slate-800/95 ring-1 ${s.anillo} rounded-2xl pl-4 pr-5 py-4 shadow-2xl shadow-black/40 max-w-sm backdrop-blur-xl animate-toast-in ${conTemblor}`;
+            toast.innerHTML = `
+                <div class="w-8 h-8 rounded-full ${s.bg} flex items-center justify-center shrink-0 animate-icon-pop animate-ring-glow">
+                    <svg class="w-4 h-4 ${s.texto}" fill="none" stroke="currentColor" viewBox="0 0 24 24">${ICONOS_SVG[tipo] || ICONOS_SVG.info}</svg>
+                </div>
+                <p class="text-sm text-slate-200 leading-snug pt-1">${mensaje}</p>
+                <div class="absolute bottom-0 left-0 h-[3px] ${s.barra} opacity-70" style="width:100%; transition: width ${duracionMs}ms linear;"></div>
+            `;
+
+            document.getElementById('toastContainer').appendChild(toast);
+
+            requestAnimationFrame(() => {
+                const barra = toast.querySelector('div.absolute');
+                requestAnimationFrame(() => { barra.style.width = '0%'; });
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('animate-toast-in');
+                toast.classList.add('animate-toast-out');
+                setTimeout(() => toast.remove(), 250);
+            }, duracionMs);
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            const token = localStorage.getItem("token");
+            if (!token) {
+                window.location.href = "/";
+                return;
+            }
+
+            // Cargar perfil y usuarios generales
+            try {
+                const resPerfil = await fetch(`${API_URL}/api/me`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (resPerfil.ok) {
+                    const userData = await resPerfil.json();
+                    document.getElementById("userNameDisplay").textContent = userData.nombre;
+                    document.getElementById("dropdownEmail").textContent = userData.email;
+                    document.getElementById("userAvatar").textContent = userData.nombre.charAt(0).toUpperCase();
+                } else {
+                    cerrarSesion();
+                }
+
+                // Cargar lista completa de usuarios (solo para el buscador)
+                const resUsuarios = await fetch(`${API_URL}/api/usuarios`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (resUsuarios.ok) {
+                    todosLosUsuarios = await resUsuarios.json();
+                }
+
+                // Cargar SOLO las conversaciones ya existentes (para pintar "Mensajes Directos")
+                const resConversaciones = await fetch(`${API_URL}/api/conversaciones`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (resConversaciones.ok) {
+                    const misConversaciones = await resConversaciones.json();
+                    renderizarDirectos(misConversaciones);
+                }
+                cargarSalas();
+                cargarContadorNotificaciones();
+                conectarNotificaciones();
+            } catch (error) {
+                console.error("Error al inicializar:", error);
+            }
+
+            // Configurar Buscador de Mensajes Directos en tiempo real
+            const buscadorDirecto = document.getElementById("buscadorDirecto");
+            const sugerenciasDirecto = document.getElementById("sugerenciasDirecto");
+
+            buscadorDirecto.addEventListener("input", (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                if (!query) {
+                    sugerenciasDirecto.classList.add("hidden");
+                    return;
+                }
+
+                const filtrados = todosLosUsuarios.filter(u => 
+                    u.nombre.toLowerCase().includes(query) || u.email.toLowerCase().includes(query)
+                );
+
+                if (filtrados.length === 0) {
+                    sugerenciasDirecto.innerHTML = `<div class="p-2 text-xs text-slate-400">No se encontraron usuarios</div>`;
+                } else {
+                    sugerenciasDirecto.innerHTML = filtrados.map(u => `
+                        <div onclick="window.location.href='/chat-privado?user=${encodeURIComponent(u.nombre)}&id=${u.id}'" class="p-2 hover:bg-slate-700/60 rounded-lg cursor-pointer flex flex-col transition-colors">
+                            <span class="text-sm font-bold text-white">${u.nombre}</span>
+                            <span class="text-xs text-slate-400">${u.email}</span>
+                        </div>
+                    `).join("");
+                }
+                sugerenciasDirecto.classList.remove("hidden");
+            });
+
+            // Cerrar sugerencias al hacer clic fuera
+            document.addEventListener("click", (e) => {
+                if (!buscadorDirecto.contains(e.target) && !sugerenciasDirecto.contains(e.target)) {
+                    sugerenciasDirecto.classList.add("hidden");
+                }
+            });
+
+            // Configurar Buscador de Miembros en Modal de Sala
+            const inputBuscarMiembro = document.getElementById("inputBuscarMiembro");
+            const sugerenciasMiembros = document.getElementById("sugerenciasMiembros");
+
+            inputBuscarMiembro.addEventListener("input", (e) => {
+                const query = e.target.value.toLowerCase().trim();
+                if (!query) {
+                    sugerenciasMiembros.classList.add("hidden");
+                    return;
+                }
+
+                // Filtrar usuarios que no hayan sido seleccionados ya
+                const filtrados = todosLosUsuarios.filter(u => 
+                    (u.nombre.toLowerCase().includes(query) || u.email.toLowerCase().includes(query)) &&
+                    !miembrosIdsSeleccionados.includes(u.id)
+                );
+
+                if (filtrados.length === 0) {
+                    sugerenciasMiembros.innerHTML = `<div class="p-2 text-xs text-slate-400 text-center">Sin resultados o ya añadidos</div>`;
+                } else {
+                    sugerenciasMiembros.innerHTML = filtrados.map(u => `
+                        <div onclick='seleccionarMiembro(${JSON.stringify(u)})' class="p-2 hover:bg-slate-800 rounded-lg cursor-pointer flex justify-between items-center transition-colors">
+                            <div>
+                                <p class="text-xs font-bold text-white">${u.nombre}</p>
+                                <p class="text-[10px] text-slate-400">${u.email}</p>
+                            </div>
+                            <span class="text-xs text-blue-400 font-bold">+ Añadir</span>
+                        </div>
+                    `).join("");
+                }
+                sugerenciasMiembros.classList.remove("hidden");
+            });
+        });
+
+        window.addEventListener("beforeunload", () => {
+            if (wsNotificaciones) wsNotificaciones.close();
+        });
+
+        // Funcionalidad Modal de Salas
+        function abrirModalCrearSala() {
+            document.getElementById("modalCrearSala").classList.remove("hidden");
+            miembrosIdsSeleccionados = [];
+            actualizarUI();
+        }
+
+        function cerrarModalCrearSala() {
+            document.getElementById("modalCrearSala").classList.add("hidden");
+            document.getElementById("formCrearSala").reset();
+            miembrosIdsSeleccionados = [];
+            actualizarUI();
+        }
+
+        function seleccionarMiembro(usuario) {
+            if (!miembrosIdsSeleccionados.includes(usuario.id)) {
+                miembrosIdsSeleccionados.push(usuario);
+            }
+            document.getElementById("inputBuscarMiembro").value = "";
+            document.getElementById("sugerenciasMiembros").classList.add("hidden");
+            actualizarUI();
+        }
+
+        function removerMiembro(id) {
+            miembrosIdsSeleccionados = miembrosIdsSeleccionados.filter(u => u.id !== id);
+            actualizarUI();
+        }
+
+        function actualizarUI() {
+            const container = document.getElementById("miembrosSeleccionadosContainer");
+            document.getElementById("contadorMiembros").textContent = miembrosIdsSeleccionados.length;
+
+            if (miembrosIdsSeleccionados.length === 0) {
+                container.innerHTML = `<span class="text-xs text-slate-500 italic self-center">Ningún miembro añadido aún.</span>`;
+                return;
+            }
+
+            container.innerHTML = miembrosIdsSeleccionados.map(u => `
+                <span class="inline-flex items-center bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs px-3 py-1 rounded-full font-medium">
+                    ${u.nombre} (${u.email})
+                    <button type="button" onclick="removerMiembro(${u.id})" class="ml-2 text-blue-400 hover:text-white font-bold">&times;</button>
+                </span>
+            `).join("");
+        }
+
+        async function guardarSala(e) {
+            e.preventDefault();
+            const token = localStorage.getItem("token");
+            const nombre = document.getElementById("nombreSala").value;
+            const descripcion = document.getElementById("descSala").value;
+
+            if (miembrosIdsSeleccionados.length === 0) {
+                mostrarToast("Debes añadir al menos un miembro a la sala.", "error");
+                return;
+            }
+
+            const payload = {
+                nombre,
+                descripcion,
+                miembros_ids: miembrosIdsSeleccionados.map(u => u.id)
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/api/salas`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    cerrarModalCrearSala();
+                    await cargarSalas();
+                    mostrarToast(`Sala "${nombre}" creada correctamente.`, "ok");
+                } else {
+                    mostrarToast("Error al crear sala: " + (data.detail || "Error desconocido"), "error");
+                }
+            } catch (error) {
+                console.error("Error de red:", error);
+                mostrarToast("No se pudo conectar con el servidor.", "error");
+            }
+        }
+
+        function renderizarDirectos(usuarios) {
+            const listaMensajes = document.getElementById("listaMensajesDirectos");
+            if (usuarios.length === 0) {
+                listaMensajes.innerHTML = `<div class="col-span-full text-center text-xs text-slate-500 p-4">No hay otros usuarios registrados</div>`;
+                return;
+            }
+
+            listaMensajes.innerHTML = "";
+            const colores = ['from-emerald-400 to-teal-600', 'from-pink-500 to-rose-600', 'from-amber-400 to-orange-500', 'from-indigo-400 to-cyan-500', 'from-violet-500 to-purple-600'];
+
+            usuarios.forEach(user => {
+                const colorDegradado = colores[user.id % colores.length];
+                listaMensajes.innerHTML += `
+                <a href="/chat-privado?user=${encodeURIComponent(user.nombre)}&id=${user.id}" class="group relative flex items-center p-5 bg-slate-800/30 hover:bg-slate-800/80 border border-slate-700/50 hover:border-slate-600 rounded-3xl transition-all duration-300 hover:shadow-2xl hover:shadow-black/40 overflow-hidden cursor-pointer hover:-translate-y-1">
+                    <div class="relative mr-5 shrink-0 z-10">
+                        <div class="w-16 h-16 rounded-full bg-gradient-to-br ${colorDegradado} text-white flex items-center justify-center text-2xl font-bold shadow-lg ring-4 ring-slate-900 group-hover:scale-110 transition-transform duration-300">
+                            ${user.nombre.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="absolute bottom-0 right-0 w-4 h-4 bg-emerald-400 border-4 border-slate-900 rounded-full"></div>
+                    </div>
+                    <div class="flex-grow min-w-0 z-10">
+                        <h4 class="text-lg font-bold text-slate-200 group-hover:text-white truncate transition-colors">${user.nombre}</h4>
+                        <p class="text-sm text-slate-400 truncate flex items-center group-hover:text-slate-300 transition-colors">
+                            <svg class="w-4 h-4 mr-1.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                            ${user.email}
+                        </p>
+                    </div>
+                </a>`;
+            });
+        }
+
+        async function cargarSalas() {
+            const token = localStorage.getItem("token");
+            try {
+                const res = await fetch(`${API_URL}/api/salas`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+                const salas = await res.json();
+                const contenedor = document.getElementById("listaSalas");
+
+                if (salas.length === 0) {
+                    contenedor.innerHTML = `<div class="col-span-full text-xs text-slate-500 p-4">Aún no perteneces a ninguna sala. Crea una para empezar.</div>`;
+                    return;
+                }
+
+                contenedor.innerHTML = salas.map(s => `
+                    <a href="/chat-sala?sala=${s.id}" class="group flex flex-col p-5 bg-slate-800/30 hover:bg-slate-800/80 border border-slate-700/50 hover:border-slate-600 rounded-3xl transition-all duration-300 hover:-translate-y-1">
+                        <h4 class="text-lg font-bold text-slate-200 group-hover:text-white">${s.nombre}</h4>
+                        <p class="text-sm text-slate-400 mt-1">${s.descripcion || "Sin descripción"}</p>
+                    </a>
+                `).join("");
+            } catch (error) {
+                console.error("Error al cargar salas:", error);
+            }
+        }
+
+        async function cargarContadorNotificaciones() {
+            const token = localStorage.getItem("token");
+            try {
+                const res = await fetch(`${API_URL}/api/notificaciones`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+                const notificaciones = await res.json();
+                const noLeidas = notificaciones.filter(n => !n.leido).length;
+                actualizarBadge(noLeidas);
+            } catch (error) {
+                console.error("Error al cargar contador de notificaciones:", error);
+            }
+        }
+
+        let wsNotificaciones = null;
+        let intentosReconexionNotif = 0;
+        const MAX_INTENTOS_NOTIF = 5;
+
+        function actualizarBadge(cantidad) {
+            const badge = document.getElementById("badgeNotificaciones");
+            if (cantidad > 0) {
+                badge.textContent = cantidad > 9 ? "9+" : cantidad;
+                badge.classList.remove("hidden");
+            } else {
+                badge.classList.add("hidden");
+            }
+        }
+
+        function conectarNotificaciones() {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+
+            wsNotificaciones = new WebSocket(`ws://127.0.0.1:8000/ws/notificaciones?token=${token}`);
+
+            wsNotificaciones.onopen = () => {
+                intentosReconexionNotif = 0;
+            };
+
+            wsNotificaciones.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                actualizarBadge(data.no_leidas);
+
+                // Si el modal de notificaciones está abierto, refrescar su contenido también
+                if (!document.getElementById("modalNotificaciones").classList.contains("hidden")) {
+                    abrirNotificaciones();
+                }
+            };
+
+            wsNotificaciones.onclose = (event) => {
+                if (event.code === 1008) return; // token inválido, no reintentar
+                if (intentosReconexionNotif >= MAX_INTENTOS_NOTIF) return;
+
+                intentosReconexionNotif++;
+                const espera = Math.min(1000 * (2 ** intentosReconexionNotif), 15000);
+                setTimeout(conectarNotificaciones, espera);
+            };
+        }
+
+        async function abrirNotificaciones() {
+            document.getElementById("userDropdown").classList.add("hidden");
+            document.getElementById("modalNotificaciones").classList.remove("hidden");
+
+            const token = localStorage.getItem("token");
+            const contenedor = document.getElementById("listaNotificaciones");
+            contenedor.innerHTML = `<div class="text-xs text-slate-500 p-4 text-center">Cargando...</div>`;
+
+            try {
+                const res = await fetch(`${API_URL}/api/notificaciones`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (!res.ok) {
+                    contenedor.innerHTML = `<div class="text-xs text-rose-400 p-4 text-center">Error al cargar notificaciones.</div>`;
+                    return;
+                }
+
+                const notificaciones = await res.json();
+
+                if (notificaciones.length === 0) {
+                    contenedor.innerHTML = `<div class="text-xs text-slate-500 p-4 text-center">No tienes notificaciones.</div>`;
+                    return;
+                }
+
+                contenedor.innerHTML = notificaciones.map(n => `
+                    <div class="p-3 rounded-xl border ${n.leido ? 'border-slate-700/50 bg-slate-900/30' : 'border-blue-500/30 bg-blue-500/5'} flex justify-between items-start gap-2">
+                        <div>
+                            <p class="text-xs font-bold text-slate-300 uppercase tracking-wide">${n.tipo}</p>
+                            <p class="text-sm text-slate-200 mt-0.5">${n.contenido}</p>
+                            <p class="text-[10px] text-slate-500 mt-1">${new Date(n.fecha_creacion).toLocaleString()}</p>
+                        </div>
+                        ${!n.leido ? `<button onclick="marcarNotificacionLeida(${n.id})" class="text-[10px] text-blue-400 hover:text-blue-300 shrink-0">Marcar leída</button>` : ''}
+                    </div>
+                `).join("");
+            } catch (error) {
+                console.error("Error al cargar notificaciones:", error);
+                contenedor.innerHTML = `<div class="text-xs text-rose-400 p-4 text-center">No se pudo conectar con el servidor.</div>`;
+            }
+        }
+
+        function cerrarNotificaciones() {
+            document.getElementById("modalNotificaciones").classList.add("hidden");
+        }
+
+        async function marcarNotificacionLeida(id) {
+            const token = localStorage.getItem("token");
+            try {
+                await fetch(`${API_URL}/api/notificaciones/${id}/leer`, {
+                    method: "PUT",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                abrirNotificaciones();
+                cargarContadorNotificaciones();
+            } catch (error) {
+                console.error("Error al marcar notificación:", error);
+            }
+        }
+
+        async function marcarTodasLeidas() {
+            const token = localStorage.getItem("token");
+            try {
+                await fetch(`${API_URL}/api/notificaciones/leer-todas`, {
+                    method: "PUT",
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                abrirNotificaciones();
+                cargarContadorNotificaciones();
+            } catch (error) {
+                console.error("Error al marcar todas como leídas:", error);
+            }
+        }
+
+        function toggleUserMenu() {
+            document.getElementById('userDropdown').classList.toggle('hidden');
+        }
+
+        function cerrarSesion() {
+            localStorage.removeItem("token");
+            localStorage.removeItem("nombre");
+            window.location.href = "/";
+        }
+    </script>
+</body>
+
+</html>

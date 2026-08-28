@@ -1,0 +1,14 @@
+# Entornos virtuales de Python
+venv/
+env/
+ENV/
+.venv/
+
+# Variables de entorno secretas (Credenciales de Neon)
+.env
+
+# Archivos y carpetas de caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sala de Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes toastPop {
+            0%   { opacity: 0; transform: translateX(28px) scale(0.9); }
+            55%  { opacity: 1; transform: translateX(-6px) scale(1.035); }
+            100% { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes toastOut {
+            to { opacity: 0; transform: translateX(20px) scale(0.92); }
+        }
+        @keyframes iconPop {
+            0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+            55%  { transform: scale(1.2) rotate(8deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        @keyframes shakeX {
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
+        }
+        @keyframes modalPop {
+            0%   { opacity: 0; transform: scale(0.85) translateY(8px); }
+            55%  { opacity: 1; transform: scale(1.025) translateY(-2px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes ringGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.08); }
+            50%      { box-shadow: 0 0 0 5px rgba(255,255,255,0.08); }
+        }
+        .animate-toast-in  { animation: toastPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .animate-toast-out { animation: toastOut 0.22s ease-in forwards; }
+        .animate-icon-pop  { animation: iconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both; }
+        .animate-shake     { animation: shakeX 0.45s ease-in-out 0.35s; }
+        .animate-modal-pop { animation: modalPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .animate-ring-glow { animation: ringGlow 1.6s ease-in-out infinite; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <header class="bg-slate-800 border-b border-slate-700 h-16 flex justify-between items-center px-6 sticky top-0 z-50">
+        <div class="flex items-center gap-2">
+            <h1 id="salaTitulo" class="text-lg font-bold text-white flex items-center space-x-2">
+                <span>💬</span> <span>Cargando Sala...</span>
+            </h1>
+            <button onclick="abrirModalRenombrar()" title="Cambiar nombre de la sala" class="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            </button>
+        </div>
+        <div class="flex items-center space-x-2">
+            <button onclick="abrirModalMiembros()" class="bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-xs font-medium px-4 py-2 rounded-lg transition-all border border-slate-600/50 flex items-center space-x-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 100-8 4 4 0 000 8zm6 3a4 4 0 00-3-3.87"></path></svg>
+                <span>Miembros</span>
+            </button>
+            <a href="/home" class="bg-slate-700/50 hover:bg-slate-700 text-slate-300 text-xs font-medium px-4 py-2 rounded-lg transition-all border border-slate-600/50">
+                &larr; Volver
+            </a>
+        </div>
+    </header>
+
+    <main class="flex-grow p-4 md:p-6 max-w-5xl mx-auto w-full flex flex-col justify-between h-[calc(100vh-4rem)]">
+        <div id="mensajesBox" class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-4 flex-grow overflow-y-auto mb-4 space-y-4">
+            <div class="text-center">
+                <span class="text-xs bg-slate-700 text-slate-400 px-3 py-1 rounded-full">Conectando al servidor en tiempo real...</span>
+            </div>
+        </div>
+
+        <form id="chatForm" class="flex space-x-3 bg-slate-800/80 p-2 rounded-2xl border border-slate-700">
+            <input type="text" id="mensajeInput" autocomplete="off" placeholder="Escribe tu mensaje aquí..." class="flex-grow bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500 text-white">
+            <button type="submit" class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-xl font-medium text-sm transition-all shadow-md text-white flex items-center space-x-2">
+                <span>Enviar</span>
+            </button>
+        </form>
+    </main>
+
+    <!-- MODAL: Miembros de la sala (ver, agregar, abandonar) -->
+    <div id="modalMiembros" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-md rounded-3xl p-6 shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-white">Miembros de la sala</h3>
+                <button onclick="cerrarModalMiembros()" class="text-slate-400 hover:text-white font-bold text-xl">&times;</button>
+            </div>
+
+            <div class="mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase">Actuales (<span id="contadorMiembrosActuales">0</span>)</span>
+                <div id="listaMiembrosActuales" class="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                    <div class="text-xs text-slate-500 p-2">Cargando...</div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <span class="text-xs font-semibold text-slate-400 uppercase">Agregar nuevo miembro</span>
+                <input type="text" id="inputBuscarNuevoMiembro" placeholder="Buscar por nombre o correo..."
+                    class="w-full mt-2 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                <div id="sugerenciasNuevoMiembro" class="hidden mt-1 bg-slate-900 border border-slate-700 rounded-xl max-h-36 overflow-y-auto space-y-1 p-1"></div>
+            </div>
+
+            <div class="flex-grow"></div>
+
+            <div class="border-t border-slate-700/60 pt-4 mt-2">
+                <button onclick="abandonarSala()" class="w-full text-center px-4 py-2.5 rounded-xl text-sm font-bold text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 transition-colors">
+                    Abandonar esta sala
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Renombrar sala -->
+    <div id="modalRenombrar" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 w-full max-w-sm rounded-3xl p-6 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-white">Cambiar nombre de la sala</h3>
+                <button onclick="cerrarModalRenombrar()" class="text-slate-400 hover:text-white font-bold text-xl">&times;</button>
+            </div>
+            <form id="formRenombrar" onsubmit="guardarNombreSala(event)">
+                <input type="text" id="inputNuevoNombre" maxlength="100" placeholder="Nuevo nombre..."
+                    class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 mb-4">
+                <div class="flex gap-3">
+                    <button type="button" onclick="cerrarModalRenombrar()" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 bg-slate-700/50 hover:bg-slate-700 transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors">
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST: reemplazo de alert() nativo -->
+    <div id="toastContainer" class="fixed top-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- MODAL: reemplazo de confirm() nativo -->
+    <div id="modalConfirmacion" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+        <div id="confirmCaja" class="bg-slate-800 border border-slate-700/80 w-full max-w-sm rounded-3xl p-7 shadow-2xl opacity-0">
+            <div id="confirmIconoWrap" class="w-14 h-14 rounded-2xl flex items-center justify-center mb-5">
+                <svg id="confirmIconoSvg" class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"></svg>
+            </div>
+            <h3 id="confirmTitulo" class="text-lg font-bold text-white mb-2">¿Estás seguro?</h3>
+            <p id="confirmMensaje" class="text-sm text-slate-400 whitespace-pre-line leading-relaxed mb-7"></p>
+            <div class="flex gap-3">
+                <button id="confirmCancelar" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 bg-slate-700/50 hover:bg-slate-700 transition-colors">
+                    Cancelar
+                </button>
+                <button id="confirmAceptar" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-lg">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const salaId = urlParams.get('sala');
+    const token = localStorage.getItem("token");
+    const nombreUsuario = localStorage.getItem("nombre") || "Anónimo";
+
+    if (!token || !salaId) {
+        window.location.href = "/home";
+    }
+
+    document.getElementById('salaTitulo').innerHTML = `<span>💬</span> <span>Cargando...</span>`;
+    let nombreSalaActual = "";
+
+    async function cargarNombreSala() {
+        try {
+            const res = await fetch(`/api/salas/${salaId}`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                nombreSalaActual = data.nombre;
+                document.getElementById('salaTitulo').innerHTML = `<span>💬</span> <span>${nombreSalaActual}</span>`;
+            }
+        } catch (error) {
+            console.error("Error al cargar nombre de la sala:", error);
+        }
+    }
+    const box = document.getElementById('mensajesBox');
+
+    let ws = null;
+    let intentosReconexion = 0;
+    const MAX_INTENTOS = 5;
+    let cierreManual = false;
+
+    let miembrosActuales = [];
+    let todosLosUsuarios = [];
+
+    // TOAST y CONFIRMACIÓN personalizados (reemplazan alert() y confirm())
+    
+    const ICONOS_SVG = {
+        ok:    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />',
+        error: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />',
+        info:  '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+        alerta:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />',
+        notificacion: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />'
+    };
+
+    function mostrarToast(mensaje, tipo = "info", duracionMs = 3500) {
+        const estilos = {
+            ok:    { anillo: "ring-emerald-500/20", bg: "bg-emerald-500/15", texto: "text-emerald-400", barra: "bg-emerald-500" },
+            error: { anillo: "ring-rose-500/20",    bg: "bg-rose-500/15",    texto: "text-rose-400",    barra: "bg-rose-500" },
+            info:  { anillo: "ring-blue-500/20",     bg: "bg-blue-500/15",     texto: "text-blue-400",     barra: "bg-blue-500" },
+            notificacion: { anillo: "ring-amber-500/20", bg: "bg-amber-500/15", texto: "text-amber-400", barra: "bg-amber-500" }
+        };
+        const s = estilos[tipo] || estilos.info;
+        const conTemblor = tipo === "error" ? "animate-shake" : "";
+
+        const toast = document.createElement('div');
+        toast.className = `pointer-events-auto relative overflow-hidden flex items-start gap-3 bg-slate-800/95 ring-1 ${s.anillo} rounded-2xl pl-4 pr-5 py-4 shadow-2xl shadow-black/40 max-w-sm backdrop-blur-xl animate-toast-in ${conTemblor}`;
+        toast.innerHTML = `
+            <div class="w-8 h-8 rounded-full ${s.bg} flex items-center justify-center shrink-0 animate-icon-pop animate-ring-glow">
+                <svg class="w-4 h-4 ${s.texto}" fill="none" stroke="currentColor" viewBox="0 0 24 24">${ICONOS_SVG[tipo] || ICONOS_SVG.info}</svg>
+            </div>
+            <p class="text-sm text-slate-200 leading-snug pt-1">${mensaje}</p>
+            <div class="absolute bottom-0 left-0 h-[3px] ${s.barra} opacity-70" style="width:100%; transition: width ${duracionMs}ms linear;"></div>
+        `;
+
+        document.getElementById('toastContainer').appendChild(toast);
+
+        requestAnimationFrame(() => {
+            const barra = toast.querySelector('div.absolute');
+            requestAnimationFrame(() => { barra.style.width = '0%'; });
+        });
+
+        setTimeout(() => {
+            toast.classList.remove('animate-toast-in');
+            toast.classList.add('animate-toast-out');
+            setTimeout(() => toast.remove(), 250);
+        }, duracionMs);
+    }
+
+    function mostrarConfirmacion(mensaje, { peligroso = true, titulo = null } = {}) {
+        return new Promise((resolve) => {
+            const modal = document.getElementById('modalConfirmacion');
+            const caja = document.getElementById('confirmCaja');
+            const iconoWrap = document.getElementById('confirmIconoWrap');
+            const iconoSvg = document.getElementById('confirmIconoSvg');
+            const btnAceptar = document.getElementById('confirmAceptar');
+            const btnCancelar = document.getElementById('confirmCancelar');
+
+            document.getElementById('confirmTitulo').textContent = titulo || (peligroso ? "Acción irreversible" : "Confirmar acción");
+            document.getElementById('confirmMensaje').textContent = mensaje;
+
+            const claseIconoBase = "w-14 h-14 rounded-2xl flex items-center justify-center mb-5 animate-icon-pop";
+
+            if (peligroso) {
+                iconoWrap.className = `${claseIconoBase} bg-rose-500/15`;
+                iconoSvg.className = "w-7 h-7 text-rose-400";
+                iconoSvg.innerHTML = ICONOS_SVG.alerta;
+                btnAceptar.className = "flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-lg bg-rose-600 hover:bg-rose-500 hover:scale-[1.02] shadow-rose-900/30";
+            } else {
+                iconoWrap.className = `${claseIconoBase} bg-blue-500/15`;
+                iconoSvg.className = "w-7 h-7 text-blue-400";
+                iconoSvg.innerHTML = ICONOS_SVG.info;
+                btnAceptar.className = "flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all shadow-lg bg-blue-600 hover:bg-blue-500 hover:scale-[1.02] shadow-blue-900/30";
+            }
+
+            modal.classList.remove('hidden');
+            caja.classList.remove('opacity-0');
+            caja.classList.add('animate-modal-pop');
+
+            function limpiar(resultado) {
+                caja.classList.remove('animate-modal-pop');
+                caja.style.transition = "opacity 0.15s ease, transform 0.15s ease";
+                caja.style.opacity = "0";
+                caja.style.transform = "scale(0.95)";
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    caja.style.transition = "";
+                    caja.style.opacity = "";
+                    caja.style.transform = "";
+                    caja.classList.add('opacity-0');
+                }, 150);
+                btnAceptar.removeEventListener('click', onAceptar);
+                btnCancelar.removeEventListener('click', onCancelar);
+                resolve(resultado);
+            }
+            function onAceptar() { limpiar(true); }
+            function onCancelar() { limpiar(false); }
+
+            btnAceptar.addEventListener('click', onAceptar);
+            btnCancelar.addEventListener('click', onCancelar);
+        });
+    }
+
+    async function cargarHistorial() {
+        try {
+            const res = await fetch(`/api/salas/${salaId}/mensajes`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (!res.ok) {
+                box.innerHTML = `<div class="text-center"><span class="text-xs bg-rose-500/10 text-rose-400 px-3 py-1 rounded-full">No tienes acceso a esta sala.</span></div>`;
+                return;
+            }
+            const historial = await res.json();
+            historial.forEach(m => pintarMensaje(m.nombre_usuario, m.mensaje, m.nombre_usuario === nombreUsuario));
+            box.scrollTop = box.scrollHeight;
+        } catch (error) {
+            console.error("Error al cargar historial:", error);
+        }
+    }
+
+    function pintarMensaje(usuario, mensaje, esMio) {
+        const alignClass = esMio ? "flex justify-end" : "flex justify-start";
+        const bubbleClass = esMio
+            ? "bg-blue-600/20 border-blue-500/30 text-blue-100"
+            : "bg-slate-700/50 border-slate-600/50 text-slate-200";
+
+        box.innerHTML += `
+            <div class="${alignClass}">
+                <div class="border ${bubbleClass} px-4 py-2 rounded-2xl max-w-[75%] shadow-sm">
+                    ${!esMio ? `<p class="text-[10px] font-bold text-slate-400 mb-0.5">${usuario}</p>` : ''}
+                    <p class="text-sm">${mensaje}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function mostrarEstado(texto, tipo = "info") {
+        const colores = {
+            info: "bg-slate-700 text-slate-400",
+            ok: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
+            error: "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+        };
+        box.innerHTML += `<div class="text-center"><span class="text-xs ${colores[tipo]} px-3 py-1 rounded-full">${texto}</span></div>`;
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function conectarWebSocket() {
+        ws = new WebSocket(`ws://127.0.0.1:8000/ws/sala/${salaId}?token=${token}`);
+
+        ws.onopen = () => {
+            intentosReconexion = 0;
+            mostrarEstado("Conexión establecida.", "ok");
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            pintarMensaje(data.usuario, data.mensaje, data.usuario === nombreUsuario);
+            box.scrollTop = box.scrollHeight;
+        };
+
+        ws.onerror = () => {
+            mostrarEstado("Error de conexión.", "error");
+        };
+
+        ws.onclose = (event) => {
+            if (cierreManual) return;
+
+            if (event.code === 1008) {
+                mostrarEstado("No se pudo conectar (sesión inválida o sin acceso a la sala).", "error");
+                return;
+            }
+
+            if (intentosReconexion >= MAX_INTENTOS) {
+                mostrarEstado("No se pudo restablecer la conexión. Recarga la página.", "error");
+                return;
+            }
+
+            intentosReconexion++;
+            const espera = Math.min(1000 * (2 ** intentosReconexion), 15000);
+            mostrarEstado(`Conexión perdida. Reintentando en ${espera / 1000}s...`, "error");
+            setTimeout(conectarWebSocket, espera);
+        };
+    }
+
+    cargarNombreSala();
+    cargarHistorial();
+    conectarWebSocket();
+
+    window.addEventListener("beforeunload", () => {
+        cierreManual = true;
+        if (ws) ws.close();
+    });
+
+    document.getElementById('chatForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('mensajeInput');
+        if (!input.value.trim()) return;
+
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            mostrarEstado("No estás conectado. Espera a que se restablezca la conexión.", "error");
+            return;
+        }
+
+        ws.send(JSON.stringify({ mensaje: input.value }));
+        input.value = '';
+    });
+
+    // MODAL: Renombrar sala
+
+    function abrirModalRenombrar() {
+        document.getElementById('inputNuevoNombre').value = nombreSalaActual;
+        document.getElementById('modalRenombrar').classList.remove('hidden');
+    }
+
+    function cerrarModalRenombrar() {
+        document.getElementById('modalRenombrar').classList.add('hidden');
+    }
+
+    async function guardarNombreSala(e) {
+        e.preventDefault();
+        const inputNombre = document.getElementById('inputNuevoNombre');
+        const nuevoNombre = inputNombre.value.trim();
+
+        // Validación: verificar que no esté vacío
+        if (!nuevoNombre) {
+            mostrarToast("El nombre de la sala no puede estar vacío.", "error");
+            inputNombre.focus();
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/salas/${salaId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ nombre: nuevoNombre })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                nombreSalaActual = data.nombre;
+                document.getElementById('salaTitulo').innerHTML = `<span>💬</span> <span>${nombreSalaActual}</span>`;
+                cerrarModalRenombrar();
+                mostrarToast("Nombre de la sala actualizado.", "ok");
+            } else {
+                mostrarToast(data.detail || "Error al cambiar el nombre.", "error");
+            }
+        } catch (error) {
+            console.error("Error al renombrar sala:", error);
+            mostrarToast("No se pudo conectar con el servidor.", "error");
+        }
+    }
+
+    // MODAL DE MIEMBROS: ver, buscar/agregar, abandonar
+    
+    async function abrirModalMiembros() {
+        document.getElementById('modalMiembros').classList.remove('hidden');
+        await Promise.all([cargarMiembrosActuales(), cargarTodosLosUsuarios()]);
+    }
+
+    function cerrarModalMiembros() {
+        document.getElementById('modalMiembros').classList.add('hidden');
+        document.getElementById('inputBuscarNuevoMiembro').value = '';
+        document.getElementById('sugerenciasNuevoMiembro').classList.add('hidden');
+    }
+
+    async function cargarMiembrosActuales() {
+        const contenedor = document.getElementById('listaMiembrosActuales');
+        contenedor.innerHTML = `<div class="text-xs text-slate-500 p-2">Cargando...</div>`;
+
+        try {
+            const res = await fetch(`/api/salas/${salaId}/miembros`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (!res.ok) {
+                contenedor.innerHTML = `<div class="text-xs text-rose-400 p-2">No se pudo cargar la lista.</div>`;
+                return;
+            }
+            miembrosActuales = await res.json();
+            document.getElementById('contadorMiembrosActuales').textContent = miembrosActuales.length;
+
+            contenedor.innerHTML = miembrosActuales.map(u => `
+                <div class="flex items-center justify-between px-3 py-2 bg-slate-900/50 rounded-lg border border-slate-700/50">
+                    <div>
+                        <p class="text-xs font-bold text-white">${u.nombre}</p>
+                        <p class="text-[10px] text-slate-400">${u.email}</p>
+                    </div>
+                </div>
+            `).join("");
+        } catch (error) {
+            console.error("Error al cargar miembros:", error);
+            contenedor.innerHTML = `<div class="text-xs text-rose-400 p-2">Error de conexión.</div>`;
+        }
+    }
+
+    async function cargarTodosLosUsuarios() {
+        try {
+            const res = await fetch(`/api/usuarios`, {
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+            if (res.ok) {
+                todosLosUsuarios = await res.json();
+            }
+        } catch (error) {
+            console.error("Error al cargar usuarios:", error);
+        }
+    }
+
+    document.getElementById('inputBuscarNuevoMiembro').addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const sugerencias = document.getElementById('sugerenciasNuevoMiembro');
+
+        if (!query) {
+            sugerencias.classList.add('hidden');
+            return;
+        }
+
+        const idsActuales = miembrosActuales.map(u => u.id);
+        const filtrados = todosLosUsuarios.filter(u =>
+            (u.nombre.toLowerCase().includes(query) || u.email.toLowerCase().includes(query)) &&
+            !idsActuales.includes(u.id)
+        );
+
+        if (filtrados.length === 0) {
+            sugerencias.innerHTML = `<div class="p-2 text-xs text-slate-400 text-center">Sin resultados o ya es miembro</div>`;
+        } else {
+            sugerencias.innerHTML = filtrados.map(u => `
+                <div onclick='agregarMiembroSala(${u.id})' class="p-2 hover:bg-slate-800 rounded-lg cursor-pointer flex justify-between items-center transition-colors">
+                    <div>
+                        <p class="text-xs font-bold text-white">${u.nombre}</p>
+                        <p class="text-[10px] text-slate-400">${u.email}</p>
+                    </div>
+                    <span class="text-xs text-blue-400 font-bold">+ Añadir</span>
+                </div>
+            `).join("");
+        }
+        sugerencias.classList.remove('hidden');
+    });
+
+    async function agregarMiembroSala(usuarioId) {
+        try {
+            const res = await fetch(`/api/salas/${salaId}/miembros`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ miembros_ids: [usuarioId] })
+            });
+
+            if (res.ok) {
+                document.getElementById('inputBuscarNuevoMiembro').value = '';
+                document.getElementById('sugerenciasNuevoMiembro').classList.add('hidden');
+                await cargarMiembrosActuales();
+                mostrarToast("Miembro agregado correctamente.", "ok");
+            } else {
+                const data = await res.json();
+                mostrarToast("Error al agregar: " + (data.detail || "Error desconocido"), "error");
+            }
+        } catch (error) {
+            console.error("Error al agregar miembro:", error);
+        }
+    }
+
+    async function abandonarSala() {
+        const esUltimoMiembro = miembrosActuales.length <= 1;
+
+        const mensaje = esUltimoMiembro
+            ? "Eres el ÚNICO miembro de esta sala.\n\nSi la abandonas, la sala se ELIMINARÁ PERMANENTEMENTE junto con todo su historial de mensajes. Esta acción no se puede deshacer.\n\n¿Deseas continuar?"
+            : "¿Seguro que quieres abandonar esta sala? Ya no podrás ver los mensajes nuevos.";
+
+        const confirmar = await mostrarConfirmacion(mensaje, { peligroso: true });
+        if (!confirmar) return;
+
+        try {
+            const res = await fetch(`/api/salas/${salaId}/salir`, {
+                method: "DELETE",
+                headers: { "Authorization": `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                cierreManual = true;
+                if (ws) ws.close();
+                mostrarToast(data.mensaje, "ok", 2000);
+                setTimeout(() => { window.location.href = "/home"; }, 1200);
+            } else {
+                const data = await res.json();
+                mostrarToast("Error al abandonar la sala: " + (data.detail || "Error desconocido"), "error");
+            }
+        } catch (error) {
+            console.error("Error al abandonar sala:", error);
+        }
+    }
+
+    document.getElementById('modalMiembros').addEventListener('click', (e) => {
+        if (e.target.id === 'modalMiembros') cerrarModalMiembros();
+    });
+</script>
+</body>
+</html>
