@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
 
-from jose import jwt, JWTError   # ← ÚNICA fuente de jwt, elimina "import jwt" duelicado
+from jose import jwt, JWTError
 
 from typing import Dict
 import json
@@ -191,7 +191,7 @@ def listar_usuarios(db: Session = Depends(get_db), current_user: models.Usuario 
     usuarios = db.query(models.Usuario).filter(models.Usuario.id != current_user.id).all()
     return [{"id": u.id, "nombre": u.nombre, "email": u.email} for u in usuarios]
 
-# NUEVA RUTA: Obtener historial de mensajes privados
+#  Obtener historial de mensajes privados
 @app.get("/api/mensajes/{otro_usuario_id}")
 def obtener_historial_privado(
     otro_usuario_id: str, 
@@ -214,6 +214,33 @@ def obtener_historial_privado(
         }
         for m in mensajes
     ]
+    
+# Mensajes Directos previos
+@app.get("/api/conversaciones")
+def listar_conversaciones(
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    """Devuelve solo los usuarios con quienes ya existe historial de mensajes privados."""
+    mi_id = str(current_user.id)
+
+    mensajes = db.query(models.MensajePrivado).filter(
+        or_(
+            models.MensajePrivado.remitente == mi_id,
+            models.MensajePrivado.destinatario == mi_id
+        )
+    ).all()
+
+    otros_ids = set()
+    for m in mensajes:
+        otro = m.destinatario if m.remitente == mi_id else m.remitente
+        otros_ids.add(int(otro))
+
+    if not otros_ids:
+        return []
+
+    usuarios = db.query(models.Usuario).filter(models.Usuario.id.in_(otros_ids)).all()
+    return [{"id": u.id, "nombre": u.nombre, "email": u.email} for u in usuarios]
 
 # --- WEBSOCKET NOTIFICACIONES ---
 @app.websocket("/ws/notificaciones")
@@ -310,17 +337,26 @@ async def websocket_endpoint(websocket: WebSocket, sala_id: int, token: str = Qu
 
 @app.post("/api/salas")
 async def crear_sala(sala: schemas.SalaCreate, db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
+    nombre_limpio = sala.nombre.strip()
+    if not nombre_limpio:
+        raise HTTPException(status_code=400, detail="El nombre de la sala no puede estar vacío")
+
+    # Verificar si este usuario ya tiene otra sala con el mismo nombre
+    sala_existente = db.query(models.Sala).join(models.SalaMiembro).filter(
+        models.SalaMiembro.usuario_id == current_user.id,
+        models.Sala.nombre == nombre_limpio
+    ).first()
+
+    if sala_existente:
+        raise HTTPException(status_code=400, detail="Ya tienes una sala con ese nombre")
+
     nueva_sala = models.Sala(
-        nombre=sala.nombre,
+        nombre=nombre_limpio,
         descripcion=sala.descripcion,
         privado=sala.privado or False
     )
     db.add(nueva_sala)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Ya existe una sala con ese nombre")
+    db.commit()
     db.refresh(nueva_sala)
 
     miembros_ids = set(sala.miembros_ids)
@@ -384,6 +420,170 @@ def obtener_historial_sala(
         }
         for m in mensajes
     ]
+
+@app.get("/api/salas/{sala_id}/miembros")
+def listar_miembros_sala(
+    sala_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    """Devuelve los miembros actuales de una sala (solo si perteneces a ella)."""
+    es_miembro = db.query(models.SalaMiembro).filter(
+        models.SalaMiembro.sala_id == sala_id,
+        models.SalaMiembro.usuario_id == current_user.id
+    ).first()
+    if not es_miembro:
+        raise HTTPException(status_code=403, detail="No perteneces a esta sala")
+
+    miembros = (
+        db.query(models.Usuario)
+        .join(models.SalaMiembro, models.SalaMiembro.usuario_id == models.Usuario.id)
+        .filter(models.SalaMiembro.sala_id == sala_id)
+        .all()
+    )
+    return [{"id": u.id, "nombre": u.nombre, "email": u.email} for u in miembros]
+
+
+@app.post("/api/salas/{sala_id}/miembros")
+async def agregar_miembros_sala(
+    sala_id: int,
+    payload: schemas.MiembrosAgregar,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    """Agrega uno o más miembros nuevos a una sala existente."""
+    es_miembro = db.query(models.SalaMiembro).filter(
+        models.SalaMiembro.sala_id == sala_id,
+        models.SalaMiembro.usuario_id == current_user.id
+    ).first()
+    if not es_miembro:
+        raise HTTPException(status_code=403, detail="No perteneces a esta sala")
+
+    sala = db.query(models.Sala).filter(models.Sala.id == sala_id).first()
+    if not sala:
+        raise HTTPException(status_code=404, detail="Sala no encontrada")
+
+    ya_miembros = {
+        m.usuario_id for m in db.query(models.SalaMiembro)
+        .filter(models.SalaMiembro.sala_id == sala_id).all()
+    }
+
+    agregados = []
+    for usuario_id in payload.miembros_ids:
+        if usuario_id in ya_miembros:
+            continue
+        db.add(models.SalaMiembro(sala_id=sala_id, usuario_id=usuario_id))
+        agregados.append(usuario_id)
+
+    db.commit()
+
+    for usuario_id in agregados:
+        await crear_notificacion(
+            db,
+            usuario_id,
+            "sala_invitacion",
+            f"{current_user.nombre} te agregó a la sala '{sala.nombre}'"
+        )
+
+    return {"mensaje": f"{len(agregados)} miembro(s) agregado(s)"}
+
+@app.delete("/api/salas/{sala_id}/salir")
+def salir_de_sala(
+    sala_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    """El usuario actual abandona la sala. Si queda vacía, se borra por completo."""
+    miembro = db.query(models.SalaMiembro).filter(
+        models.SalaMiembro.sala_id == sala_id,
+        models.SalaMiembro.usuario_id == current_user.id
+    ).first()
+
+    if not miembro:
+        raise HTTPException(status_code=404, detail="No perteneces a esta sala")
+
+    db.delete(miembro)
+    db.commit()
+
+    miembros_restantes = db.query(models.SalaMiembro).filter(
+        models.SalaMiembro.sala_id == sala_id
+    ).count()
+
+    if miembros_restantes == 0:
+        sala = db.query(models.Sala).filter(models.Sala.id == sala_id).first()
+        if sala:
+            db.delete(sala)
+            db.commit()
+        return {"mensaje": "Has salido de la sala. Como quedó vacía, se eliminó por completo."}
+
+    return {"mensaje": "Has salido de la sala"}
+
+@app.get("/api/salas/{sala_id}")
+def obtener_sala(
+    sala_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    """Devuelve los datos de una sala específica (para precargar el nombre real al editar)."""
+    es_miembro = db.query(models.SalaMiembro).filter(
+        models.SalaMiembro.sala_id == sala_id,
+        models.SalaMiembro.usuario_id == current_user.id
+    ).first()
+    if not es_miembro:
+        raise HTTPException(status_code=403, detail="No perteneces a esta sala")
+
+    sala = db.query(models.Sala).filter(models.Sala.id == sala_id).first()
+    if not sala:
+        raise HTTPException(status_code=404, detail="Sala no encontrada")
+
+    return {"id": sala.id, "nombre": sala.nombre, "descripcion": sala.descripcion}
+
+
+@app.put("/api/salas/{sala_id}")
+def renombrar_sala(
+    sala_id: int,
+    datos: schemas.SalaRename,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(get_current_user)
+):
+    """Cambia el nombre de una sala (cualquier miembro puede hacerlo, por ahora)."""
+    es_miembro = db.query(models.SalaMiembro).filter(
+        models.SalaMiembro.sala_id == sala_id,
+        models.SalaMiembro.usuario_id == current_user.id
+    ).first()
+    if not es_miembro:
+        raise HTTPException(status_code=403, detail="No perteneces a esta sala")
+
+    sala = db.query(models.Sala).filter(models.Sala.id == sala_id).first()
+    if not sala:
+        raise HTTPException(status_code=404, detail="Sala no encontrada")
+
+    nombre_nuevo = datos.nombre.strip()
+    if not nombre_nuevo:
+        raise HTTPException(status_code=400, detail="El nombre no puede estar vacío")
+
+    # Verificar si el usuario ya tiene OTRA sala con este mismo nombre
+    sala_duplicada = db.query(models.Sala).join(models.SalaMiembro).filter(
+        models.SalaMiembro.usuario_id == current_user.id,
+        models.Sala.nombre == nombre_nuevo,
+        models.Sala.id != sala_id
+    ).first()
+
+    if sala_duplicada:
+        raise HTTPException(status_code=400, detail="Ya tienes otra sala con ese nombre")
+
+    sala.nombre = nombre_nuevo
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Error al actualizar el nombre")
+    
+    db.refresh(sala)
+
+    return {"mensaje": "Nombre actualizado", "nombre": sala.nombre}
+
+
 
 @app.get("/api/notificaciones")
 def listar_notificaciones(

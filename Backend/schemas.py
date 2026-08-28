@@ -49,6 +49,12 @@ class SalaMiembroOut(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class MiembrosAgregar(BaseModel):
+    miembros_ids: List[int]
+
+class SalaRename(BaseModel):
+    nombre: str
 
 # --- Mensajes ---
 class MensajeCreate(BaseModel):

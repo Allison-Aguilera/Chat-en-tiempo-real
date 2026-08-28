@@ -24,6 +24,36 @@
             }
         }
     </script>
+    <style>
+    @keyframes toastPop {
+        0%   { opacity: 0; transform: translateX(28px) scale(0.9); }
+        55%  { opacity: 1; transform: translateX(-6px) scale(1.035); }
+        100% { opacity: 1; transform: translateX(0) scale(1); }
+    }
+    @keyframes toastOut {
+        to { opacity: 0; transform: translateX(20px) scale(0.92); }
+    }
+    @keyframes iconPop {
+        0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+        55%  { transform: scale(1.2) rotate(8deg); opacity: 1; }
+        100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    @keyframes shakeX {
+        10%, 90% { transform: translateX(-1px); }
+        20%, 80% { transform: translateX(2px); }
+        30%, 50%, 70% { transform: translateX(-4px); }
+        40%, 60% { transform: translateX(4px); }
+    }
+    @keyframes ringGlow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.08); }
+        50%      { box-shadow: 0 0 0 5px rgba(255,255,255,0.08); }
+    }
+    .animate-toast-in  { animation: toastPop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    .animate-toast-out { animation: toastOut 0.22s ease-in forwards; }
+    .animate-icon-pop  { animation: iconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.12s both; }
+    .animate-shake     { animation: shakeX 0.45s ease-in-out 0.35s; }
+    .animate-ring-glow { animation: ringGlow 1.6s ease-in-out infinite; }
+</style>
 </head>
 
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white">
@@ -39,10 +69,7 @@
                 </div>
                 <div>
                     <h1 class="text-lg font-bold tracking-tight text-white">NexusChat</h1>
-                    <span class="inline-flex items-center text-xs text-emerald-400 font-medium">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-1.5"></span>
-                        Sistema en línea
-                    </span>
+                    
                 </div>
             </div>
 
@@ -192,12 +219,56 @@
             </form>
         </div>
     </div>
-
+    <!-- TOAST: reemplazo de alert() nativo -->
+    <div id="toastContainer" class="fixed top-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+    
     <!-- Scripts de Interacción -->
     <script>
         const API_URL = "http://127.0.0.1:8000";
         let todosLosUsuarios = [];
         let miembrosIdsSeleccionados = [];
+
+        const ICONOS_SVG = {
+            ok:    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />',
+            error: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />',
+            info:  '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
+            alerta:'<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />',
+            notificacion: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />'
+        };
+
+        function mostrarToast(mensaje, tipo = "info", duracionMs = 3500) {
+            const estilos = {
+                ok:    { anillo: "ring-emerald-500/20", bg: "bg-emerald-500/15", texto: "text-emerald-400", barra: "bg-emerald-500" },
+                error: { anillo: "ring-rose-500/20",    bg: "bg-rose-500/15",    texto: "text-rose-400",    barra: "bg-rose-500" },
+                info:  { anillo: "ring-blue-500/20",     bg: "bg-blue-500/15",     texto: "text-blue-400",     barra: "bg-blue-500" },
+                notificacion: { anillo: "ring-amber-500/20", bg: "bg-amber-500/15", texto: "text-amber-400", barra: "bg-amber-500" }
+            };
+            const s = estilos[tipo] || estilos.info;
+            const conTemblor = tipo === "error" ? "animate-shake" : "";
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto relative overflow-hidden flex items-start gap-3 bg-slate-800/95 ring-1 ${s.anillo} rounded-2xl pl-4 pr-5 py-4 shadow-2xl shadow-black/40 max-w-sm backdrop-blur-xl animate-toast-in ${conTemblor}`;
+            toast.innerHTML = `
+                <div class="w-8 h-8 rounded-full ${s.bg} flex items-center justify-center shrink-0 animate-icon-pop animate-ring-glow">
+                    <svg class="w-4 h-4 ${s.texto}" fill="none" stroke="currentColor" viewBox="0 0 24 24">${ICONOS_SVG[tipo] || ICONOS_SVG.info}</svg>
+                </div>
+                <p class="text-sm text-slate-200 leading-snug pt-1">${mensaje}</p>
+                <div class="absolute bottom-0 left-0 h-[3px] ${s.barra} opacity-70" style="width:100%; transition: width ${duracionMs}ms linear;"></div>
+            `;
+
+            document.getElementById('toastContainer').appendChild(toast);
+
+            requestAnimationFrame(() => {
+                const barra = toast.querySelector('div.absolute');
+                requestAnimationFrame(() => { barra.style.width = '0%'; });
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('animate-toast-in');
+                toast.classList.add('animate-toast-out');
+                setTimeout(() => toast.remove(), 250);
+            }, duracionMs);
+        }
 
         document.addEventListener("DOMContentLoaded", async () => {
             const token = localStorage.getItem("token");
@@ -220,13 +291,21 @@
                     cerrarSesion();
                 }
 
-                // Cargar lista completa de usuarios para los buscadores
+                // Cargar lista completa de usuarios (solo para el buscador)
                 const resUsuarios = await fetch(`${API_URL}/api/usuarios`, {
                     headers: { "Authorization": `Bearer ${token}` }
                 });
                 if (resUsuarios.ok) {
                     todosLosUsuarios = await resUsuarios.json();
-                    renderizarDirectos(todosLosUsuarios);
+                }
+
+                // Cargar SOLO las conversaciones ya existentes (para pintar "Mensajes Directos")
+                const resConversaciones = await fetch(`${API_URL}/api/conversaciones`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                });
+                if (resConversaciones.ok) {
+                    const misConversaciones = await resConversaciones.json();
+                    renderizarDirectos(misConversaciones);
                 }
                 cargarSalas();
                 cargarContadorNotificaciones();
@@ -360,7 +439,7 @@
             const descripcion = document.getElementById("descSala").value;
 
             if (miembrosIdsSeleccionados.length === 0) {
-                alert("Debes añadir al menos un miembro a la sala.");
+                mostrarToast("Debes añadir al menos un miembro a la sala.", "error");
                 return;
             }
 
@@ -383,14 +462,15 @@
                 const data = await res.json();
 
                 if (res.ok) {
-                    console.log("Sala creada:", data);
                     cerrarModalCrearSala();
                     await cargarSalas();
+                    mostrarToast(`Sala "${nombre}" creada correctamente.`, "ok");
                 } else {
-                    alert("Error al crear sala: " + (data.detail || "Error desconocido"));
+                    mostrarToast("Error al crear sala: " + (data.detail || "Error desconocido"), "error");
                 }
             } catch (error) {
                 console.error("Error de red:", error);
+                mostrarToast("No se pudo conectar con el servidor.", "error");
             }
         }
 
